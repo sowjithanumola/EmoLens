@@ -1,0 +1,7 @@
+{
+  "name": "EmoLens AI",
+  "description": "A sophisticated emotion analysis tool using Gemini Vision to interpret facial expressions, providing respectful and non-judgmental emotional insights in real-time.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

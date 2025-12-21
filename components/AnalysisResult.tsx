@@ -1,0 +1,98 @@
+
+import React from 'react';
+import { EmotionAnalysis } from '../types';
+
+interface AnalysisResultProps {
+  result: EmotionAnalysis | null;
+}
+
+const AnalysisResult: React.FC<AnalysisResultProps> = ({ result }) => {
+  if (!result) return (
+    <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 flex flex-col items-center justify-center text-gray-400 min-h-[300px]">
+      <svg className="w-16 h-16 mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <p className="text-lg font-medium">Ready for your expression</p>
+      <p className="text-sm">Click "Analyze Expression" to start</p>
+    </div>
+  );
+
+  if (!result.isFaceDetected) return (
+    <div className="bg-white rounded-2xl p-8 shadow-sm border-l-4 border-yellow-400 flex flex-col items-center justify-center text-center min-h-[300px]">
+      <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
+        <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+        </svg>
+      </div>
+      <h3 className="text-xl font-bold text-gray-800 mb-2">Face Not Clear Enough</h3>
+      <p className="text-gray-600 max-w-xs">We couldn't quite see your expression. Please ensure your face is well-lit and fully visible in the camera.</p>
+    </div>
+  );
+
+  const intensityColor = (val: number) => {
+    if (val < 4) return 'bg-emerald-500';
+    if (val < 7) return 'bg-amber-500';
+    return 'bg-rose-500';
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+        <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">Analysis Result</h3>
+        <span className="text-xs text-gray-400">{new Date(result.timestamp).toLocaleTimeString()}</span>
+      </div>
+      
+      <div className="p-8 space-y-8">
+        <div className="flex flex-wrap gap-8 items-start">
+          <div className="flex-1 min-w-[200px]">
+            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-2">Primary Emotion</label>
+            <div className="text-4xl font-black text-gray-900 capitalize tracking-tight">{result.primaryEmotion}</div>
+          </div>
+          
+          {result.secondaryEmotion && (
+            <div className="flex-1 min-w-[200px]">
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-2">Secondary Subtle Tone</label>
+              <div className="text-2xl font-bold text-gray-600 capitalize">{result.secondaryEmotion}</div>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex justify-between items-end">
+            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Emotion Intensity</label>
+            <span className="text-2xl font-black text-gray-800">{result.intensity}<span className="text-sm text-gray-400 font-medium">/10</span></span>
+          </div>
+          <div className="h-3 w-full bg-gray-100 rounded-full overflow-hidden flex">
+            <div 
+              className={`h-full transition-all duration-1000 ease-out ${intensityColor(result.intensity)}`}
+              style={{ width: `${result.intensity * 10}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="p-6 bg-indigo-50 rounded-2xl border border-indigo-100">
+          <div className="flex gap-4">
+            <div className="mt-1">
+              <svg className="w-5 h-5 text-indigo-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <p className="text-indigo-900 leading-relaxed italic">
+              "{result.explanation}"
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="px-8 py-4 bg-gray-50 flex items-center gap-2 text-xs text-gray-500">
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+        AI analysis based on visual cues. Non-diagnostic.
+      </div>
+    </div>
+  );
+};
+
+export default AnalysisResult;
