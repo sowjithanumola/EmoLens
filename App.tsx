@@ -23,7 +23,7 @@ const App: React.FC = () => {
       setStatus(AnalysisStatus.SUCCESS);
     } catch (err) {
       console.error("Analysis failed:", err);
-      setError("Failed to analyze expression. Please try again.");
+      setError("Failed to analyze expression. Please ensure you have a stable connection and try again.");
       setStatus(AnalysisStatus.ERROR);
     }
   }, []);
@@ -44,7 +44,6 @@ const App: React.FC = () => {
               <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Emotion Analysis Engine</p>
             </div>
           </div>
-          {/* Powered by section removed */}
         </div>
       </header>
 
@@ -70,17 +69,8 @@ const App: React.FC = () => {
               />
             </section>
 
-            {error && (
-              <div className="bg-rose-50 border border-rose-200 p-4 rounded-xl flex items-center gap-3 text-rose-700">
-                <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-                <p className="font-medium text-sm">{error}</p>
-              </div>
-            )}
-
             <div className="lg:hidden">
-              <AnalysisResult result={currentAnalysis} />
+              <AnalysisResult result={currentAnalysis} error={error} />
             </div>
 
             {/* Application Info */}
@@ -107,7 +97,7 @@ const App: React.FC = () => {
           <div className="lg:col-span-4 space-y-8">
             <section className="hidden lg:block">
               <h2 className="text-lg font-bold text-slate-800 mb-4 px-2">Detailed Analysis</h2>
-              <AnalysisResult result={currentAnalysis} />
+              <AnalysisResult result={currentAnalysis} error={error} />
             </section>
 
             <section>
@@ -127,7 +117,10 @@ const App: React.FC = () => {
                     <div 
                       key={item.id} 
                       className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow cursor-default group"
-                      onClick={() => setCurrentAnalysis(item)}
+                      onClick={() => {
+                        setCurrentAnalysis(item);
+                        setError(null);
+                      }}
                     >
                       <div className="flex justify-between items-start mb-2">
                         <span className="font-bold text-slate-900 capitalize">{item.primaryEmotion}</span>
