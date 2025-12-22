@@ -2,7 +2,7 @@
 import React, { useState, useCallback } from 'react';
 import CameraFeed from './components/CameraFeed';
 import AnalysisResult from './components/AnalysisResult';
-import { analyzeEmotionFromImage } from './services/geminiService';
+import { analyzeEmotionFromImage, speakText } from './services/geminiService';
 import { EmotionAnalysis, AnalysisStatus } from './types';
 
 const App: React.FC = () => {
@@ -17,13 +17,17 @@ const App: React.FC = () => {
     try {
       const result = await analyzeEmotionFromImage(base64Image);
       setCurrentAnalysis(result);
+      
       if (result.isFaceDetected) {
-        setHistory(prev => [result, ...prev].slice(0, 10)); // Keep last 10 detections
+        setHistory(prev => [result, ...prev].slice(0, 10));
+        // Automatically speak the analysis
+        await speakText(result.explanation);
       }
+      
       setStatus(AnalysisStatus.SUCCESS);
     } catch (err) {
       console.error("Analysis failed:", err);
-      setError("Failed to analyze expression. Please ensure you have a stable connection and try again.");
+      setError("I encountered an issue analyzing the frame. Please check your connection and try again.");
       setStatus(AnalysisStatus.ERROR);
     }
   }, []);
@@ -41,7 +45,12 @@ const App: React.FC = () => {
             </div>
             <div>
               <h1 className="text-xl font-black text-slate-900 tracking-tight">EmoLens AI</h1>
-              <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Emotion Analysis Engine</p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Emotion Analysis AI</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-full border border-emerald-100 uppercase tracking-tighter">
+              Voice Active
             </div>
           </div>
         </div>
@@ -50,17 +59,17 @@ const App: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 mt-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* Main Content Area: Camera & Primary Result */}
+          {/* Camera Area */}
           <div className="lg:col-span-8 space-y-8">
             <section className="space-y-4">
               <div className="flex items-center justify-between px-2">
                 <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
-                  Visual Input
+                  Visual Observation
                 </h2>
                 <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-                  <span className="animate-pulse w-2 h-2 rounded-full bg-emerald-500"></span>
-                  LIVE STREAM
+                  <span className="animate-pulse w-2 h-2 rounded-full bg-rose-500"></span>
+                  ACTIVE SCAN
                 </div>
               </div>
               <CameraFeed 
@@ -73,12 +82,12 @@ const App: React.FC = () => {
               <AnalysisResult result={currentAnalysis} error={error} />
             </div>
 
-            {/* Application Info */}
+            {/* Application Features */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
-                { title: 'Privacy First', desc: 'Faces are processed for emotion only. No identity tracking.', icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z' },
-                { title: 'Real-time Analysis', desc: 'Gemini Vision processes visual cues in milliseconds.', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
-                { title: 'Respectful AI', desc: 'Insights are non-judgmental and supportive by design.', icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z' }
+                { title: 'Audible Insights', desc: 'The AI speaks its observations to provide interactive feedback.', icon: 'M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z' },
+                { title: 'Vision Intelligence', desc: 'Uses Gemini Vision to interpret micro-expressions.', icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+                { title: 'Session Privacy', desc: 'History is cleared on refresh. No data is stored permanently.', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' }
               ].map((item, i) => (
                 <div key={i} className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm">
                   <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center mb-3 text-indigo-500">
@@ -93,48 +102,43 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* Sidebar Area: Analysis Result & History */}
+          {/* Analysis Panel */}
           <div className="lg:col-span-4 space-y-8">
             <section className="hidden lg:block">
-              <h2 className="text-lg font-bold text-slate-800 mb-4 px-2">Detailed Analysis</h2>
+              <h2 className="text-lg font-bold text-slate-800 mb-4 px-2">Analysis Panel</h2>
               <AnalysisResult result={currentAnalysis} error={error} />
             </section>
 
             <section>
               <div className="flex items-center justify-between mb-4 px-2">
-                <h2 className="text-lg font-bold text-slate-800">Recent History</h2>
+                <h2 className="text-lg font-bold text-slate-800">Observation Logs</h2>
                 <span className="text-[10px] font-bold bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
-                  SESSION ONLY
+                  LATEST
                 </span>
               </div>
               <div className="space-y-3">
                 {history.length === 0 ? (
                   <div className="bg-white/50 border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center">
-                    <p className="text-sm text-slate-400 font-medium italic">No recent captures</p>
+                    <p className="text-sm text-slate-400 font-medium italic">Waiting for capture...</p>
                   </div>
                 ) : (
                   history.map((item) => (
                     <div 
                       key={item.id} 
-                      className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow cursor-default group"
+                      className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
                       onClick={() => {
                         setCurrentAnalysis(item);
                         setError(null);
+                        speakText(item.explanation);
                       }}
                     >
-                      <div className="flex justify-between items-start mb-2">
+                      <div className="flex justify-between items-start mb-1">
                         <span className="font-bold text-slate-900 capitalize">{item.primaryEmotion}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-slate-400">INTENSITY</span>
-                          <span className="text-xs font-black text-indigo-600">{item.intensity}/10</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] font-bold text-indigo-600">{item.intensity}/10</span>
                         </div>
                       </div>
-                      <p className="text-xs text-slate-500 line-clamp-1 group-hover:line-clamp-none transition-all duration-300">
-                        {item.explanation}
-                      </p>
-                      <div className="mt-2 text-[10px] text-slate-300 font-medium">
-                        {new Date(item.timestamp).toLocaleTimeString()}
-                      </div>
+                      <p className="text-[11px] text-slate-400 line-clamp-1 italic">"{item.explanation}"</p>
                     </div>
                   ))
                 )}
@@ -144,10 +148,10 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      <footer className="mt-20 border-t border-slate-200 pt-8 pb-12">
+      <footer className="mt-20 border-t border-slate-200 py-12">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <p className="text-sm text-slate-400">
-            &copy; {new Date().getFullYear()} EmoLens AI. For entertainment and research purposes only.
+            &copy; {new Date().getFullYear()} EmoLens AI Observation Engine.
           </p>
         </div>
       </footer>
