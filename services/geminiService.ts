@@ -2,7 +2,19 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { EmotionAnalysis } from "../types";
 
-// Audio Utility: Decode base64 to Uint8Array
+// Helper to safely parse JSON from model response
+const parseModelJson = (text: string | undefined): any => {
+  if (!text) return { isFaceDetected: false, explanation: "No response from AI." };
+  try {
+    // Remove potential markdown code blocks if the model ignored responseMimeType
+    const cleanText = text.replace(/```json\n?|```/g, "").trim();
+    return JSON.parse(cleanText);
+  } catch (e) {
+    console.error("JSON Parse Error:", e, "Raw text:", text);
+    return { isFaceDetected: false, explanation: "The AI response was malformed. Please try again." };
+  }
+};
+
 const decodeBase64 = (base64: string): Uint8Array => {
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
@@ -12,7 +24,6 @@ const decodeBase64 = (base64: string): Uint8Array => {
   return bytes;
 };
 
-// Audio Utility: Decode raw PCM data to AudioBuffer
 const decodeAudioData = async (
   data: Uint8Array,
   ctx: AudioContext,
@@ -34,36 +45,41 @@ const decodeAudioData = async (
 
 export const analyzeEmotionFromImage = async (base64Image: string): Promise<EmotionAnalysis> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  // Using gemini-3-flash-preview for low-latency visual analysis
   const model = "gemini-3-flash-preview";
 
-  const prompt = `You are a Reaction and Emotion Analysis AI. Your role is to look at the user and describe what you see.
+  const systemInstruction = `You are a Reaction and Emotion Analysis AI. Your role is to look at the user and describe what you see.
   
-  Guidelines for your response:
-  1. Be an observant, empathetic AI companion.
-  2. Identify the primary emotion and any subtle secondary cues.
-  3. Provide a natural, spoken-word explanation in the first person (e.g., "I notice a gentle lift in your eyes and a slight smile—it looks like you're feeling quite happy and content right now.").
-  4. Ensure the explanation is concise and formatted for easy reading/speaking (no complex symbols).
-  5. Set intensity from 1 (very subtle) to 10 (extremely intense).
-  6. If no face is clearly visible, set isFaceDetected to false.
+  Guidelines:
+  1. Be observant and empathetic.
+  2. Identify primary emotion and secondary cues.
+  3. Provide a natural, first-person spoken explanation (e.g., "I notice a gentle lift in your eyes...").
+  4. Intensity: 1-10.
+  5. If no face is visible, set isFaceDetected to false.
   
-  Format the output as JSON.`;
+  Format: JSON only.`;
 
   try {
     const response = await ai.models.generateContent({
       model,
-      contents: {
-        parts: [
-          { text: prompt },
-          {
-            inlineData: {
-              mimeType: "image/jpeg",
-              data: base64Image.split(',')[1] || base64Image,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              inlineData: {
+                mimeType: "image/jpeg",
+                data: base64Image.split(',')[1] || base64Image,
+              },
             },
-          },
-        ],
-      },
+            { text: "Analyze my current facial expression and reaction." }
+          ],
+        }
+      ],
       config: {
+        systemInstruction,
         responseMimeType: "application/json",
+        thinkingConfig: { thinkingBudget: 0 }, // Disable thinking for faster real-time reaction
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -78,14 +94,18 @@ export const analyzeEmotionFromImage = async (base64Image: string): Promise<Emot
       },
     });
 
-    const data = JSON.parse(response.text);
+    const data = parseModelJson(response.text);
     return {
       ...data,
       timestamp: Date.now(),
       id: Math.random().toString(36).substr(2, 9),
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Vision Error:", error);
+    // Propagate more descriptive errors if possible
+    if (error?.message?.includes("API_KEY_INVALID")) {
+      throw new Error("Invalid API Key. Please check your configuration.");
+    }
     throw error;
   }
 };
@@ -93,12 +113,13 @@ export const analyzeEmotionFromImage = async (base64Image: string): Promise<Emot
 let globalAudioCtx: AudioContext | null = null;
 
 export const speakText = async (text: string): Promise<void> => {
+  if (!text) return;
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: `Say this naturally and expressively: ${text}` }] }],
+      contents: [{ parts: [{ text: `Read this analysis: ${text}` }] }],
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: {
@@ -115,7 +136,6 @@ export const speakText = async (text: string): Promise<void> => {
         globalAudioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       }
       
-      // Crucial: AudioContext must be resumed within a user interaction flow
       if (globalAudioCtx.state === 'suspended') {
         await globalAudioCtx.resume();
       }
