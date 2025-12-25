@@ -36,17 +36,17 @@ export const analyzeEmotionFromImage = async (base64Image: string): Promise<Emot
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   const model = "gemini-3-flash-preview";
 
-  const prompt = `You are an Emotion Analysis AI observer. Analyze the facial expression in this image. 
-  Follow these rules:
-  1. Identify primary emotion.
-  2. Identify secondary subtle tones.
-  3. Estimate intensity (1-10).
-  4. Provide a friendly, first-person explanation (e.g., "I can see a warm smile that suggests you're feeling quite happy..."). 
-     Make it sound natural as if you are speaking to the user.
-  5. Set isFaceDetected to false if no face is clear.
-  6. DO NOT use names or diagnose medical conditions.
+  const prompt = `You are a Reaction and Emotion Analysis AI. Your role is to look at the user and describe what you see.
   
-  Output the result in the specified JSON format.`;
+  Guidelines for your response:
+  1. Be an observant, empathetic AI companion.
+  2. Identify the primary emotion and any subtle secondary cues.
+  3. Provide a natural, spoken-word explanation in the first person (e.g., "I notice a gentle lift in your eyes and a slight smile—it looks like you're feeling quite happy and content right now.").
+  4. Ensure the explanation is concise and formatted for easy reading/speaking (no complex symbols).
+  5. Set intensity from 1 (very subtle) to 10 (extremely intense).
+  6. If no face is clearly visible, set isFaceDetected to false.
+  
+  Format the output as JSON.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -90,13 +90,15 @@ export const analyzeEmotionFromImage = async (base64Image: string): Promise<Emot
   }
 };
 
+let globalAudioCtx: AudioContext | null = null;
+
 export const speakText = async (text: string): Promise<void> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: `Say this naturally: ${text}` }] }],
+      contents: [{ parts: [{ text: `Say this naturally and expressively: ${text}` }] }],
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: {
@@ -109,14 +111,26 @@ export const speakText = async (text: string): Promise<void> => {
 
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (base64Audio) {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-      const audioData = decodeBase64(base64Audio);
-      const audioBuffer = await decodeAudioData(audioData, audioCtx, 24000, 1);
+      if (!globalAudioCtx) {
+        globalAudioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      }
       
-      const source = audioCtx.createBufferSource();
+      // Crucial: AudioContext must be resumed within a user interaction flow
+      if (globalAudioCtx.state === 'suspended') {
+        await globalAudioCtx.resume();
+      }
+
+      const audioData = decodeBase64(base64Audio);
+      const audioBuffer = await decodeAudioData(audioData, globalAudioCtx, 24000, 1);
+      
+      const source = globalAudioCtx.createBufferSource();
       source.buffer = audioBuffer;
-      source.connect(audioCtx.destination);
-      source.start();
+      source.connect(globalAudioCtx.destination);
+      
+      return new Promise((resolve) => {
+        source.onended = () => resolve();
+        source.start();
+      });
     }
   } catch (error) {
     console.error("Gemini TTS Error:", error);
