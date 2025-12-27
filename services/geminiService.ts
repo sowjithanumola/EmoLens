@@ -25,9 +25,9 @@ const parseModelJson = (text: string | undefined): any => {
     console.error("JSON Parse Error:", e, "Raw text:", text);
     return {
       isFaceDetected: true,
-      primaryEmotion: "Unknown",
+      primaryEmotion: "Complex",
       intensity: 5,
-      explanation: "I can see your expression, but it's uniquely complex. It reflects a nuanced state of mind."
+      explanation: "Your expression shows a fascinating depth that words struggle to capture fully."
     };
   }
 };
@@ -60,13 +60,13 @@ const decodeAudioData = async (
 };
 
 export const analyzeEmotionFromImage = async (base64Image: string): Promise<EmotionAnalysis> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   const model = "gemini-3-flash-preview";
 
   const systemInstruction = `You are Mentor AI, an advanced observational intelligence. Look at the user and interpret their facial expression and reaction.
   Guidelines:
   1. Be observant, empathetic, and professional.
-  2. Refer to yourself as Mentor AI if asked, but generally use first-person (e.g., "I notice...").
+  2. Use first-person (e.g., "I notice...").
   3. Format response strictly as JSON.
   4. If no face is visible, set isFaceDetected to false.`;
 
@@ -91,7 +91,7 @@ export const analyzeEmotionFromImage = async (base64Image: string): Promise<Emot
             primaryEmotion: { type: Type.STRING },
             secondaryEmotion: { type: Type.STRING },
             intensity: { type: Type.INTEGER, description: "1-10 intensity" },
-            explanation: { type: Type.STRING, description: "Observation for TTS" },
+            explanation: { type: Type.STRING, description: "Short observation for speech feedback" },
           },
           required: ["isFaceDetected", "primaryEmotion", "intensity", "explanation"],
         },
@@ -112,12 +112,12 @@ export const analyzeEmotionFromImage = async (base64Image: string): Promise<Emot
 
 export const speakText = async (text: string): Promise<void> => {
   if (!text) return;
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: `Read this as Mentor AI with a warm, observant tone: ${text}` }] }],
+      contents: [{ parts: [{ text: `Speak this observation as Mentor AI: ${text}` }] }],
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: {
@@ -146,6 +146,6 @@ export const speakText = async (text: string): Promise<void> => {
       });
     }
   } catch (error) {
-    console.error("Mentor AI TTS Error:", error);
+    console.error("Mentor AI Speech Error:", error);
   }
 };
