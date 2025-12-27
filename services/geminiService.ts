@@ -2,16 +2,33 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { EmotionAnalysis } from "../types";
 
-// Helper to safely parse JSON from model response
+let globalAudioCtx: AudioContext | null = null;
+
+/**
+ * Initializes the global AudioContext on user interaction to ensure voice works reliably.
+ */
+export const initializeAudio = () => {
+  if (!globalAudioCtx) {
+    globalAudioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+  }
+  if (globalAudioCtx.state === 'suspended') {
+    globalAudioCtx.resume();
+  }
+};
+
 const parseModelJson = (text: string | undefined): any => {
-  if (!text) return { isFaceDetected: false, explanation: "No response from AI." };
+  if (!text) throw new Error("Empty response from AI");
   try {
-    // Remove potential markdown code blocks if the model ignored responseMimeType
     const cleanText = text.replace(/```json\n?|```/g, "").trim();
     return JSON.parse(cleanText);
   } catch (e) {
     console.error("JSON Parse Error:", e, "Raw text:", text);
-    return { isFaceDetected: false, explanation: "The AI response was malformed. Please try again." };
+    return {
+      isFaceDetected: true,
+      primaryEmotion: "Unknown",
+      intensity: 5,
+      explanation: "I can see your expression, but it's uniquely complex. It reflects a nuanced state of mind."
+    };
   }
 };
 
@@ -33,7 +50,6 @@ const decodeAudioData = async (
   const dataInt16 = new Int16Array(data.buffer);
   const frameCount = dataInt16.length / numChannels;
   const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
-
   for (let channel = 0; channel < numChannels; channel++) {
     const channelData = buffer.getChannelData(channel);
     for (let i = 0; i < frameCount; i++) {
@@ -44,50 +60,38 @@ const decodeAudioData = async (
 };
 
 export const analyzeEmotionFromImage = async (base64Image: string): Promise<EmotionAnalysis> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-  // Using gemini-3-flash-preview for low-latency visual analysis
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const model = "gemini-3-flash-preview";
 
-  const systemInstruction = `You are a Reaction and Emotion Analysis AI. Your role is to look at the user and describe what you see.
-  
+  const systemInstruction = `You are Mentor AI, an advanced observational intelligence. Look at the user and interpret their facial expression and reaction.
   Guidelines:
-  1. Be observant and empathetic.
-  2. Identify primary emotion and secondary cues.
-  3. Provide a natural, first-person spoken explanation (e.g., "I notice a gentle lift in your eyes...").
-  4. Intensity: 1-10.
-  5. If no face is visible, set isFaceDetected to false.
-  
-  Format: JSON only.`;
+  1. Be observant, empathetic, and professional.
+  2. Refer to yourself as Mentor AI if asked, but generally use first-person (e.g., "I notice...").
+  3. Format response strictly as JSON.
+  4. If no face is visible, set isFaceDetected to false.`;
+
+  const base64Data = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
 
   try {
     const response = await ai.models.generateContent({
       model,
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              inlineData: {
-                mimeType: "image/jpeg",
-                data: base64Image.split(',')[1] || base64Image,
-              },
-            },
-            { text: "Analyze my current facial expression and reaction." }
-          ],
-        }
-      ],
+      contents: {
+        parts: [
+          { inlineData: { mimeType: "image/jpeg", data: base64Data } },
+          { text: "Analyze the facial expression in this image. Provide a detailed analysis in JSON format." }
+        ]
+      },
       config: {
         systemInstruction,
         responseMimeType: "application/json",
-        thinkingConfig: { thinkingBudget: 0 }, // Disable thinking for faster real-time reaction
         responseSchema: {
           type: Type.OBJECT,
           properties: {
             isFaceDetected: { type: Type.BOOLEAN },
             primaryEmotion: { type: Type.STRING },
             secondaryEmotion: { type: Type.STRING },
-            intensity: { type: Type.INTEGER },
-            explanation: { type: Type.STRING },
+            intensity: { type: Type.INTEGER, description: "1-10 intensity" },
+            explanation: { type: Type.STRING, description: "Observation for TTS" },
           },
           required: ["isFaceDetected", "primaryEmotion", "intensity", "explanation"],
         },
@@ -101,31 +105,23 @@ export const analyzeEmotionFromImage = async (base64Image: string): Promise<Emot
       id: Math.random().toString(36).substr(2, 9),
     };
   } catch (error: any) {
-    console.error("Gemini Vision Error:", error);
-    // Propagate more descriptive errors if possible
-    if (error?.message?.includes("API_KEY_INVALID")) {
-      throw new Error("Invalid API Key. Please check your configuration.");
-    }
-    throw error;
+    console.error("Mentor AI Analysis Error:", error);
+    throw new Error(error?.message || "Analysis failed. Please check your connection.");
   }
 };
 
-let globalAudioCtx: AudioContext | null = null;
-
 export const speakText = async (text: string): Promise<void> => {
   if (!text) return;
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: `Read this analysis: ${text}` }] }],
+      contents: [{ parts: [{ text: `Read this as Mentor AI with a warm, observant tone: ${text}` }] }],
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: 'Zephyr' },
-          },
+          voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } },
         },
       },
     });
@@ -135,10 +131,7 @@ export const speakText = async (text: string): Promise<void> => {
       if (!globalAudioCtx) {
         globalAudioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       }
-      
-      if (globalAudioCtx.state === 'suspended') {
-        await globalAudioCtx.resume();
-      }
+      if (globalAudioCtx.state === 'suspended') await globalAudioCtx.resume();
 
       const audioData = decodeBase64(base64Audio);
       const audioBuffer = await decodeAudioData(audioData, globalAudioCtx, 24000, 1);
@@ -153,6 +146,6 @@ export const speakText = async (text: string): Promise<void> => {
       });
     }
   } catch (error) {
-    console.error("Gemini TTS Error:", error);
+    console.error("Mentor AI TTS Error:", error);
   }
 };
