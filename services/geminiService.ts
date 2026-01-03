@@ -5,19 +5,24 @@ import { EmotionAnalysis } from "../types";
 let globalAudioCtx: AudioContext | null = null;
 
 /**
- * Initializes the global AudioContext on user interaction to ensure voice works reliably.
+ * Initializes and resumes the global AudioContext. 
+ * Must be triggered by a user action (like a button click).
  */
 export const initializeAudio = () => {
-  if (!globalAudioCtx) {
-    globalAudioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-  }
-  if (globalAudioCtx.state === 'suspended') {
-    globalAudioCtx.resume();
+  try {
+    if (!globalAudioCtx) {
+      globalAudioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    }
+    if (globalAudioCtx.state === 'suspended') {
+      globalAudioCtx.resume();
+    }
+  } catch (e) {
+    console.error("Audio Context initialization failed", e);
   }
 };
 
 const parseModelJson = (text: string | undefined): any => {
-  if (!text) throw new Error("Empty response from AI");
+  if (!text) throw new Error("Empty response from EmoLens");
   try {
     const cleanText = text.replace(/```json\n?|```/g, "").trim();
     return JSON.parse(cleanText);
@@ -27,7 +32,7 @@ const parseModelJson = (text: string | undefined): any => {
       isFaceDetected: true,
       primaryEmotion: "Complex",
       intensity: 5,
-      explanation: "Your expression shows a fascinating depth that words struggle to capture fully."
+      explanation: "I see a deep and complex expression that's hard to put into simple words."
     };
   }
 };
@@ -63,12 +68,15 @@ export const analyzeEmotionFromImage = async (base64Image: string): Promise<Emot
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   const model = "gemini-3-flash-preview";
 
-  const systemInstruction = `You are Mentor AI, an advanced observational intelligence. Look at the user and interpret their facial expression and reaction.
-  Guidelines:
-  1. Be observant, empathetic, and professional.
-  2. Use first-person (e.g., "I notice...").
-  3. Format response strictly as JSON.
-  4. If no face is visible, set isFaceDetected to false.`;
+  const systemInstruction = `You are EmoLens, a high-level emotional intelligence observer. 
+  Your task is to analyze the user's facial expression from the camera feed.
+  Rules:
+  1. Be professional yet warm and empathetic.
+  2. Speak in the first person ("I notice...", "I see...").
+  3. Detect the primary emotion and intensity (1-10).
+  4. Provide a 1-2 sentence spoken explanation.
+  5. Strictly JSON output.
+  6. If no face is detected, set isFaceDetected to false.`;
 
   const base64Data = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
 
@@ -78,20 +86,21 @@ export const analyzeEmotionFromImage = async (base64Image: string): Promise<Emot
       contents: {
         parts: [
           { inlineData: { mimeType: "image/jpeg", data: base64Data } },
-          { text: "Analyze the facial expression in this image. Provide a detailed analysis in JSON format." }
+          { text: "Perform a reaction analysis on this visual frame." }
         ]
       },
       config: {
         systemInstruction,
         responseMimeType: "application/json",
+        thinkingConfig: { thinkingBudget: 0 },
         responseSchema: {
           type: Type.OBJECT,
           properties: {
             isFaceDetected: { type: Type.BOOLEAN },
             primaryEmotion: { type: Type.STRING },
             secondaryEmotion: { type: Type.STRING },
-            intensity: { type: Type.INTEGER, description: "1-10 intensity" },
-            explanation: { type: Type.STRING, description: "Short observation for speech feedback" },
+            intensity: { type: Type.INTEGER },
+            explanation: { type: Type.STRING },
           },
           required: ["isFaceDetected", "primaryEmotion", "intensity", "explanation"],
         },
@@ -105,8 +114,8 @@ export const analyzeEmotionFromImage = async (base64Image: string): Promise<Emot
       id: Math.random().toString(36).substr(2, 9),
     };
   } catch (error: any) {
-    console.error("Mentor AI Analysis Error:", error);
-    throw new Error(error?.message || "Analysis failed. Please check your connection.");
+    console.error("EmoLens Analysis Error:", error);
+    throw new Error(error?.message || "I couldn't process the image right now.");
   }
 };
 
@@ -117,7 +126,7 @@ export const speakText = async (text: string): Promise<void> => {
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: `Speak this observation as Mentor AI: ${text}` }] }],
+      contents: [{ parts: [{ text: `Speak this analysis: ${text}` }] }],
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: {
@@ -146,6 +155,6 @@ export const speakText = async (text: string): Promise<void> => {
       });
     }
   } catch (error) {
-    console.error("Mentor AI Speech Error:", error);
+    console.error("EmoLens Audio Error:", error);
   }
 };

@@ -11,7 +11,7 @@ interface AnalysisResultProps {
 const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, error }) => {
   const [isSpeaking, setIsSpeaking] = useState(false);
 
-  const handleReplay = async () => {
+  const handlePlayVoice = async () => {
     if (!result?.explanation || isSpeaking) return;
     initializeAudio();
     setIsSpeaking(true);
@@ -41,7 +41,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, error }) => {
           </svg>
         </div>
       </div>
-      <p className="text-xl font-bold text-slate-900 mb-2">Mentor AI Insight</p>
+      <p className="text-xl font-bold text-slate-900 mb-2">EmoLens Insight</p>
       <p className="text-sm max-w-xs text-center leading-relaxed">I am ready to analyze your expression. Capture a frame to receive your first observation.</p>
     </div>
   );
@@ -63,7 +63,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, error }) => {
       <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
         <div className="flex items-center gap-3">
           <span className="flex h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Mentor AI Insight</h3>
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">EmoLens Insight</h3>
         </div>
         <div className="mono text-[10px] text-slate-400 bg-white px-2 py-1 rounded-md border border-slate-100">
           LOG: {result.id}
@@ -103,13 +103,22 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, error }) => {
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Observation</span>
               </div>
               <button 
-                onClick={handleReplay}
+                onClick={handlePlayVoice}
                 disabled={isSpeaking}
-                className={`p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-all ${isSpeaking ? 'opacity-20 scale-95' : 'opacity-100'}`}
+                className={`p-3 bg-white/10 hover:bg-white/20 rounded-full transition-all border border-white/10 flex items-center gap-2 group/mic ${isSpeaking ? 'opacity-20 scale-95' : 'opacity-100 hover:scale-110 active:scale-95'}`}
+                title="Listen to analysis"
               >
-                <svg className={`w-5 h-5 ${isSpeaking ? 'animate-pulse' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                <svg className={`w-5 h-5 ${isSpeaking ? 'animate-pulse text-indigo-400' : 'text-white'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  <line x1="12" y1="19" x2="12" y2="23" />
+                  <line x1="8" y1="23" x2="16" y2="23" />
                 </svg>
+                {isSpeaking ? (
+                   <span className="text-[9px] font-black uppercase tracking-widest">Speaking...</span>
+                ) : (
+                   <span className="text-[9px] font-black uppercase tracking-widest opacity-0 group-hover/mic:opacity-100 transition-opacity">Listen</span>
+                )}
               </button>
             </div>
             
