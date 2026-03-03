@@ -1,0 +1,1 @@
+Emo Lens is an AI-powered emotion detection system that analyzes facial expressions in real-time using a camera or uploaded images. It identifies human emotions and provides insights based on facial features using machine learning models.
